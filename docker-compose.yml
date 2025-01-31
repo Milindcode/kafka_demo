@@ -4,15 +4,30 @@ networks:
 
 services:
     kafka: 
-        image: wurstmeister/kafka:latest
+        image: apache/kafka:latest
         container_name: kafka
+        networks: 
+            - kafka-network
         environment:
-            KAFKA_LISTENER_SECURITY_PROTOCOL: PLAINTEXT
-            KAFKA_LISTENER_NAME: PLAINTEXT
-            KAFKA_KRAFT_MODE: "true"  # Enabling KRaft mode
-            KAFKA_LISTENER_PORT: 9092
-            KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:9092  # This is the internal listener for other containers to access
-            KAFKA_LISTENER_INTERNAL: INSIDE://0.0.0.0:9092  # Internal listener for other containers
-            KAFKA_ZOOKEEPER: ""  # No Zookeeper since we're using KRaft mode
+            KAFKA_NODE_ID: 1
+            KAFKA_PROCESS_ROLES: broker,controller               # The node acts as both broker and controller
+            KAFKA_LISTENERS: PLAINTEXT://localhost:9092,CONTROLLER://localhost:9093  # Ports for broker and controller
+            KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092                  # External listener for clients
+            KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER         # Listener name for inter-controller communication
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT  # Security protocol for listeners
+            KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093    # Quorum voters for the controller in KRaft mode
+            KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1           # Replication factor for the offsets topic
+            KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1   # Replication factor for transaction logs
+            KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1              # Minimum in-sync replicas for transactional logs
+            KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0           # Initial delay before consumer group rebalancing
+            KAFKA_NUM_PARTITIONS: 3                             # Default number of partitions for new topics
         ports:
-        - "9092:9092"  # Expose port for external access (optional)
+            - "9092:9092"     # Port for Kafka broker
+
+
+## Sample command to produce messages from terminal : 
+#        docker exec -it broker ./opt/kafka/bin/kafka-console-producer.sh --broker-list localhost:9092 --topic test-topic
+
+
+## Sample command to consume messaged from terminal: 
+#       docker exec -it broker ./opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test-topic --from-beginning
